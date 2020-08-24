@@ -36,7 +36,7 @@ int main()
 	uint32_t *offload_data;
 	uint32_t adc_data;
 	struct spi_engine_offload_message msg;
-	uint8_t commands_data[2] = {0xFF, 0xFF};
+	uint8_t commands_data[1] = {AD469x_CMD_SEL_TEMP_SNSOR_CH};
 	int32_t ret, data;
 	uint32_t i;
 //	main_sergiu();
@@ -50,8 +50,8 @@ int main()
 		.ref_clk_hz = AD469x_SPI_ENG_REF_CLK_FREQ_HZ,
 		.type = SPI_ENGINE,
 		.spi_engine_baseaddr = AD469x_SPI_ENGINE_BASEADDR,
-		.cs_delay = 2,
-		.data_width = 32,
+		.cs_delay = 0,
+		.data_width = 16,
 	};
 
 	struct axi_clkgen_init clkgen_init = {
@@ -68,13 +68,13 @@ int main()
 	struct ad469x_init_param ad469x_init_param = {
 		.spi_init = {
 			.chip_select = AD469x_SPI_CS,
-			.max_speed_hz = 2083333,
+			.max_speed_hz = 20000000,
 			.mode = SPI_MODE_0,
 			.platform_ops = &spi_eng_platform_ops,
 			.extra = (void*)&spi_eng_init_param,
 		},
 		.clkgen_init = clkgen_init,
-		.reg_access_speed = 1000000,
+		.reg_access_speed = 20000000,
 		.dev_id = ID_AD4003, /* dev_id */
 		.gpio_resetn = &ad469x_resetn,
 	};
@@ -86,7 +86,7 @@ int main()
 
 	uint32_t spi_eng_msg_cmds[3] = {
 		CS_LOW,
-		READ(2),
+		WRITE_READ(1),
 		CS_HIGH
 	};
 
@@ -128,8 +128,8 @@ int main()
 
 		for(i = 0; i < AD469x_EVB_SAMPLE_NO / 2; i++) {
 			data = *offload_data & 0xFFFFF;
-			if (data > 524287)
-				data = data - 1048576;
+//			if (data > 524287)
+//				data = data - 1048576;
 			printf("ADC%d: %d \n", i, data);
 			offload_data += 1;
 		}
