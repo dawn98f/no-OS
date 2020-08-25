@@ -585,7 +585,7 @@ static int32_t spi_engine_transfer_message(struct spi_desc *desc,
 		for(i = 0; i < desc_extra->offload_tx_len; i++)
 			spi_engine_write(desc_extra,
 					 SPI_ENGINE_REG_OFFLOAD_SDO_MEM(0),
-					 bswap_constant_32(msg->tx_buf[i]));
+					 msg->tx_buf[i]);
 
 	} else {
 		for(i = 0; i < msg->length; i++)
@@ -815,7 +815,7 @@ int32_t spi_engine_offload_transfer(struct spi_desc *desc,
 	if (!transfer.cmds)
 		return FAILURE;
 
-	transfer.tx_buf = (uint32_t *)msg.commands_data;
+	transfer.tx_buf = msg.commands_data;
 
 	/* Load the commands into the message */
 	transfer.cmds->next = NULL;
