@@ -26,7 +26,15 @@
 #define GPIO_OFFSET			54
 #define GPIO_RESETN_1			GPIO_OFFSET + 32
 #define GPIO_DEVICE_ID			XPAR_PS7_GPIO_0_DEVICE_ID
-#define SPI_TRIGGER_BASEADDR	XPAR_SPI_AD4696_TRIGGER_GEN_BASEADDR
+
+#define SPI_TRIGGER_BASEADDR			XPAR_SPI_AD4696_TRIGGER_GEN_BASEADDR
+#define AXI_PWMGEN_BASEADDR				XPAR_SPI_AD4696_TRIGGER_GEN_BASEADDR
+#define AXI_PWMGEN_REG_CONFIG		0x10
+#define AXI_PWMGEN_REG_PULSE_PERIOD	0x14
+#define AXI_PWMGEN_REG_PULSE_WIDTH	0x18
+
+
+
 
 #define SPI_ENGINE_OFFLOAD_EXAMPLE	1
 
@@ -36,7 +44,7 @@ int main()
 	uint32_t *offload_data;
 	uint32_t adc_data;
 	struct spi_engine_offload_message msg;
-	uint8_t commands_data[1] = {AD469x_CMD_SEL_TEMP_SNSOR_CH};
+	uint32_t commands_data[] = {AD469x_CMD_SEL_TEMP_SNSOR_CH << 8};
 	int32_t ret, data;
 	uint32_t i;
 //	main_sergiu();
@@ -68,7 +76,7 @@ int main()
 	struct ad469x_init_param ad469x_init_param = {
 		.spi_init = {
 			.chip_select = AD469x_SPI_CS,
-			.max_speed_hz = 20000000,
+			.max_speed_hz = 80000000,
 			.mode = SPI_MODE_0,
 			.platform_ops = &spi_eng_platform_ops,
 			.extra = (void*)&spi_eng_init_param,
@@ -105,8 +113,16 @@ int main()
 	}
 	/* Offload example */
 	else {
-		//axi_write(0x44a70010, BIT(1));
-		axi_io_write(SPI_TRIGGER_BASEADDR, 0x10, BIT(1));
+		uint32_t period;
+		axi_io_read(AXI_PWMGEN_BASEADDR, AXI_PWMGEN_REG_PULSE_PERIOD, &period);
+//		axi_io_write(AXI_PWMGEN_BASEADDR, AXI_PWMGEN_REG_PULSE_PERIOD, period * 2);
+		axi_io_read(AXI_PWMGEN_BASEADDR, AXI_PWMGEN_REG_PULSE_PERIOD, &period);
+		axi_io_write(SPI_TRIGGER_BASEADDR, AXI_PWMGEN_REG_CONFIG, BIT(1));
+
+
+//		axi_io_read(AXI_PWMGEN_BASEADDR, AXI_PWMGEN_REG_PULSE_WIDTH, &period);
+//		axi_io_write(AXI_PWMGEN_BASEADDR, AXI_PWMGEN_REG_PULSE_WIDTH, period / 2);
+//		axi_io_read(AXI_PWMGEN_BASEADDR, AXI_PWMGEN_REG_PULSE_WIDTH, &period);
 
 		ret = spi_engine_offload_init(dev->spi_desc, &spi_engine_offload_init_param);
 		if (ret != SUCCESS)
