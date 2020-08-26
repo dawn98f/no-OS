@@ -33,18 +33,14 @@
 #define AXI_PWMGEN_REG_PULSE_PERIOD	0x14
 #define AXI_PWMGEN_REG_PULSE_WIDTH	0x18
 
-
-
-
-#define SPI_ENGINE_OFFLOAD_EXAMPLE	1
-
 int main()
 {
 	struct ad469x_dev *dev;
 	uint32_t *offload_data;
 	uint32_t adc_data;
 	struct spi_engine_offload_message msg;
-	uint32_t commands_data[] = {AD469x_CMD_SEL_TEMP_SNSOR_CH << 8};
+//	uint32_t commands_data[] = {AD469x_CMD_SEL_TEMP_SNSOR_CH << 8};
+	uint32_t commands_data[] = {AD469x_CMD_CONFIG_CH_SEL(0) << 8};
 	int32_t ret, data;
 	uint32_t i;
 //	main_sergiu();
@@ -77,7 +73,7 @@ int main()
 		.spi_init = {
 			.chip_select = AD469x_SPI_CS,
 			.max_speed_hz = 80000000,
-			.mode = SPI_MODE_0,
+			.mode = SPI_MODE_3,
 			.platform_ops = &spi_eng_platform_ops,
 			.extra = (void*)&spi_eng_init_param,
 		},
@@ -105,50 +101,36 @@ int main()
 	if (ret < 0)
 		return ret;
 
-	if (SPI_ENGINE_OFFLOAD_EXAMPLE == 0) {
-		while(1) {
-			ad469x_spi_single_conversion(dev, &adc_data);
-			xil_printf("ADC: %d\n\r", adc_data);
-		}
-	}
-	/* Offload example */
-	else {
-		uint32_t period;
-		axi_io_read(AXI_PWMGEN_BASEADDR, AXI_PWMGEN_REG_PULSE_PERIOD, &period);
-//		axi_io_write(AXI_PWMGEN_BASEADDR, AXI_PWMGEN_REG_PULSE_PERIOD, period * 2);
-		axi_io_read(AXI_PWMGEN_BASEADDR, AXI_PWMGEN_REG_PULSE_PERIOD, &period);
-		axi_io_write(SPI_TRIGGER_BASEADDR, AXI_PWMGEN_REG_CONFIG, BIT(1));
+	uint32_t period;
+	axi_io_read(AXI_PWMGEN_BASEADDR, AXI_PWMGEN_REG_PULSE_PERIOD, &period);
+	axi_io_write(AXI_PWMGEN_BASEADDR, AXI_PWMGEN_REG_PULSE_PERIOD, period * 2);
+	axi_io_read(AXI_PWMGEN_BASEADDR, AXI_PWMGEN_REG_PULSE_PERIOD, &period);
+	axi_io_write(SPI_TRIGGER_BASEADDR, AXI_PWMGEN_REG_CONFIG, BIT(1));
 
+	ret = spi_engine_offload_init(dev->spi_desc, &spi_engine_offload_init_param);
+	if (ret != SUCCESS)
+		return FAILURE;
 
-//		axi_io_read(AXI_PWMGEN_BASEADDR, AXI_PWMGEN_REG_PULSE_WIDTH, &period);
-//		axi_io_write(AXI_PWMGEN_BASEADDR, AXI_PWMGEN_REG_PULSE_WIDTH, period / 2);
-//		axi_io_read(AXI_PWMGEN_BASEADDR, AXI_PWMGEN_REG_PULSE_WIDTH, &period);
+	msg.commands = spi_eng_msg_cmds;
+	msg.no_commands = ARRAY_SIZE(spi_eng_msg_cmds);
+	msg.rx_addr = 0x800000;
+	msg.tx_addr = 0xA000000;
+	msg.commands_data = commands_data;
 
-		ret = spi_engine_offload_init(dev->spi_desc, &spi_engine_offload_init_param);
-		if (ret != SUCCESS)
-			return FAILURE;
+	ret = spi_engine_offload_transfer(dev->spi_desc, msg, AD469x_EVB_SAMPLE_NO);
+	if (ret != SUCCESS)
+		return ret;
 
-		msg.commands = spi_eng_msg_cmds;
-		msg.no_commands = ARRAY_SIZE(spi_eng_msg_cmds);
-		msg.rx_addr = 0x800000;
-		msg.tx_addr = 0xA000000;
-		msg.commands_data = commands_data;
+	mdelay(2000);
+	Xil_DCacheInvalidateRange(0x800000, AD469x_EVB_SAMPLE_NO * 4);
+	offload_data = (uint32_t *)msg.rx_addr;
 
-		ret = spi_engine_offload_transfer(dev->spi_desc, msg, AD469x_EVB_SAMPLE_NO);
-		if (ret != SUCCESS)
-			return ret;
-
-		mdelay(2000);
-		Xil_DCacheInvalidateRange(0x800000, AD469x_EVB_SAMPLE_NO * 4);
-		offload_data = (uint32_t *)msg.rx_addr;
-
-		for(i = 0; i < AD469x_EVB_SAMPLE_NO / 2; i++) {
-			data = *offload_data & 0xFFFFF;
+	for(i = 0; i < AD469x_EVB_SAMPLE_NO / 2; i++) {
+		data = *offload_data & 0xFFFFF;
 //			if (data > 524287)
 //				data = data - 1048576;
-			printf("ADC%d: %d \n", i, data);
-			offload_data += 1;
-		}
+		printf("ADC%d: %d \n", i, data);
+		offload_data += 1;
 	}
 
 	print("Success\n\r");

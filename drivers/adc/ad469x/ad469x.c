@@ -100,25 +100,6 @@ int32_t ad469x_spi_reg_write(struct ad469x_dev *dev,
 }
 
 /**
- * Read conversion result from device.
- * @param dev - The device structure.
- * @param adc_data - The conversion result data
- * @return 0 in case of success, negative error code otherwise.
- */
-int32_t ad469x_spi_single_conversion(struct ad469x_dev *dev,
-				     uint32_t *adc_data)
-{
-	uint16_t buf = 0;
-	int32_t ret;
-
-	ret = spi_write_and_read(dev->spi_desc, (uint8_t *)&buf, 2);
-
-	*adc_data = buf & 0xFFFFF;
-
-	return ret;
-}
-
-/**
  * SPI read from device using a mask.
  * @param dev - The device structure.
  * @param reg_addr - The register address.
@@ -306,7 +287,7 @@ int32_t ad469x_init(struct ad469x_dev **device,
 
 	dev->reg_access_speed = init_param->reg_access_speed;
 	dev->dev_id = init_param->dev_id;
-
+	spi_engine_set_transfer_width(dev->spi_desc, 8);
 	spi_engine_set_speed(dev->spi_desc, dev->reg_access_speed);
 
 	ad469x_spi_reg_read(dev, AD469x_REG_SCRATCH_PAD, &data);
@@ -321,9 +302,7 @@ int32_t ad469x_init(struct ad469x_dev **device,
 	ad469x_set_busy(dev, AD469x_busy_gp0);
 
 	ad469x_set_interface_mode(dev, AD469x_IF_CONVERSION_MODE);
-
-	ad469x_conversion_mode_command_write(dev, AD469x_CMD_SEL_TEMP_SNSOR_CH);
-
+	spi_engine_set_transfer_width(dev->spi_desc, spi_eng_init_param->data_width);
 	spi_engine_set_speed(dev->spi_desc, dev->spi_desc->max_speed_hz);
 
 	*device = dev;

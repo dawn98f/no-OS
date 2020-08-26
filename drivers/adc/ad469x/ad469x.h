@@ -81,7 +81,7 @@
 /* 5-bit SDI Conversion Mode Commands */
 #define AD469x_CMD_REG_CONFIG_MODE		(0x0A << 3)
 #define AD469x_CMD_SEL_TEMP_SNSOR_CH	(0x0F << 3)
-#define AD469x_CMD_CONFIG_CH_SEL 		(0x10 << 3)
+#define AD469x_CMD_CONFIG_CH_SEL(x)		((0x10 | (0x0F & x)) << 3)
 
 /* AD469x_REG_SETUP */
 #define AD469x_REG_SETUP_IF_MODE_MASK		(0x01 << 2)
@@ -157,7 +157,5 @@ int32_t ad469x_spi_write_mask(struct ad469x_dev *dev,
 int32_t ad469x_init(struct ad469x_dev **device,
 		    struct ad469x_init_param *init_param);
 int32_t ad469x_remove(struct ad469x_dev *dev);
-int32_t ad469x_spi_single_conversion(struct ad469x_dev *dev,
-				     uint32_t *adc_data);
 
 #endif /* SRC_AD400X_H_ */
